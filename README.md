@@ -20,3 +20,7 @@ The decrypter takes the following inputs:
   * 896-byte encoded polynomial (secret key)
   
 These values are used to decrypt the ciphertext to the 32-byte plaintext which can be then be expanded using SHAKE256 as needed to generate a shared secret value. The values are loaded into a single internal RAM using the *input_dia*, *input_addra* and *input_wea* signals with the ciphertext being placed in the lower 1088-bytes and the secret key being placed in the upper 896-bytes. It is currently assumed that the reset signal will be asserted between runs. Once the start signal is asserted for one clock cycle the decrypter will run and will assert the done signal for one clock cycle upon completion. At that point the plaintext can be read out 32-bits at a time using the *output_addr* and *output_do* signals.
+
+## Usage:
+
+To run this project, create a new Vivado project and include all files beginning with "tb_" as simulation sources and all others as design sources. To run the tests you must change the path of the readmemh command to reflect the file path of your directory. Currently the project passes simulation tests, timing constraints for a 100Mhz clock, and contains no concerning sythesis warnings (there are some but I have inspected them and do not anticipate them causing implementation issues).
