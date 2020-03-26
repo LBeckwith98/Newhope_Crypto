@@ -1,23 +1,12 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
+// Company: Virginia Tech
+// Engineer: Luke Beckwith
 // 
-// Create Date: 03/02/2020 04:33:24 PM
-// Design Name: 
 // Module Name: barrett_reducer
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: pipelined barrett reducer for NEWHOPE_Q == 12289
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
+// Description: reduces a 16-bit value mod 12289 *newhope_q
 //////////////////////////////////////////////////////////////////////////////////
+
 
 
 module barrett_reducer(
