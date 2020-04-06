@@ -10,7 +10,7 @@
 
 
 module poly_ram (clka,clkb,ena,enb,wea,web,addra,addrb,dia,dib,doa,dob);
-    parameter INVERSE_GAMMAS = 1'b1;
+    parameter FILENAME = "";
 
     input clka, clkb, ena, enb, wea, web;
     input [10:0] addra, addrb;
@@ -43,7 +43,11 @@ module poly_ram (clka,clkb,ena,enb,wea,web,addra,addrb,dia,dib,doa,dob);
     
     // initialize top of RAM with gammas_inv_montgomery
     initial begin
-       if (INVERSE_GAMMAS == 1'b1) begin
+      if (FILENAME != "") begin
+        $readmemh(FILENAME, ram);
+      end
+    end
+       /*if (INVERSE_GAMMAS == 1'b1) begin
         ram[0] = 16'h0200;
         ram[1] = 16'h0F68;
         ram[2] = 16'h10AB;
@@ -1070,6 +1074,7 @@ module poly_ram (clka,clkb,ena,enb,wea,web,addra,addrb,dia,dib,doa,dob);
         ram[510] = 16'h0AAB;
         ram[511] = 16'h20A5;
        end
-    end
+       */
+    
     
 endmodule

@@ -44,21 +44,21 @@ module poly_arithmetic(
     MULTIPLY_PRECOMP = 2'b11;
 
    // states operations
-   reg [1:0] state, state_next;
    localparam 
     HOLD  = 2'b00, 
     LOAD       = 2'b01, 
     CALCULATE = 2'b10,
     UNLOAD = 2'b11;
-
+   reg [1:0] state = HOLD, state_next;
+   
   // keeps track of which coefficients are being affected
-  reg [8:0] coeff_count, coeff_count_next;
+  reg [8:0] coeff_count = 0, coeff_count_next;
   assign ram_addr = coeff_count;
 
   // arithmetic modules
   wire [15:0] add_out, sub_out, mult_out;
-  reg mult_start, sub_start;
-  wire mult_done, sub_done;
+  reg mult_start, sub_start, add_start;
+  wire mult_done, sub_done, add_done;
   wire precomp;
   
   assign precomp = (opCode == MULTIPLY_PRECOMP) ? 1'b1 : 1'b0;
@@ -68,7 +68,7 @@ module poly_arithmetic(
                     (opCode == SUBTRACT) ? sub_out : 
                     (opCode == MULTIPLY_PRECOMP) ? mult_out :16'd0;
 
-  poly_add_coeff add_module(ram_doa, ram_dob, add_out);
+  poly_add_coeff add_module(clk, add_start, ram_doa, ram_dob, add_done, add_out);
   poly_sub_coeff sub_module(clk, rst, sub_start, ram_doa, ram_dob, sub_done, sub_out);
   poly_mult_coeff mult_module(clk, rst, mult_start, precomp, mult_done, ram_doa, ram_dob, mult_out);
   
@@ -85,13 +85,10 @@ module poly_arithmetic(
         end
     end
     LOAD: begin
-        if (opCode != ADD) 
-            state_next = CALCULATE;
-        else
-            state_next = UNLOAD;
+        state_next = CALCULATE;
     end
     CALCULATE: begin
-        if (mult_done || sub_done)
+        if (mult_done || sub_done || add_done)
             state_next = UNLOAD;        
     end
     UNLOAD: begin
@@ -119,6 +116,8 @@ module poly_arithmetic(
     done <= 1'b0;
     mult_start <= 1'b0;
     sub_start <= 1'b0;
+    add_start <= 1'b0;
+    ram_we <= 1'b0;
   
     case (state) 
     HOLD: begin
@@ -131,13 +130,14 @@ module poly_arithmetic(
         end else if (opCode == SUBTRACT) begin
             sub_start <= 1'b1;
             ram_we <= 1'b0;
-        end else begin
-            ram_we <= 1'b1;
+        end else if (opCode == ADD) begin
+            add_start <= 1'b1;
+            ram_we <= 1'b0;
         end
         
     end
     CALCULATE: begin
-        if (mult_done || sub_done) begin
+        if (mult_done || sub_done || add_done) begin
             ram_we <= 1'b1;
         end else begin
             ram_we <= 1'b0;

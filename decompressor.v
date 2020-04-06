@@ -47,14 +47,14 @@ module decompressor(
         STORE_R5         = 4'd7,
         STORE_R6         = 4'd8,
         FINAL_STORE_R7   = 4'd9;
-    reg [3:0] state, state_next;
+    reg [3:0] state = HOLD, state_next;
     
-    reg [5:0] c;
+    reg [5:0] c = 0;
     wire [9:0] i = {c, 3'b000};
     reg [7:0] a0, a1, a2;
     
     // MUX for 8 possible outputs
-    reg [2:0] out_select;
+    reg [2:0] out_select = 0;
     assign poly_dia = (out_select == 0) ? 16'h0000 :
                       (out_select == 1) ? 16'h0600 :
                       (out_select == 2) ? 16'h0c00 :

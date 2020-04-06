@@ -25,9 +25,9 @@ module ntt_montgomery_module(
     );
 
     // pipeline registers
-    reg [31:0] SUB_a = 0, MULT_a = 0, REDUCE_a = 0;
-    reg [15:0] SUB_a_pair = 0, SUB_omega = 0,  MULT_omega = 0;
-    reg SUB_load = 0, MULT_load = 0, REDUCE_load = 0;
+    reg [31:0] REDUCE_a = 32'd0;
+    reg [15:0] SUB_a_pair = 16'd0, SUB_omega = 16'd0,  MULT_omega = 16'd0, SUB_a = 16'd0, MULT_a = 16'd0;
+    reg SUB_load = 1'd0, MULT_load = 1'd0, REDUCE_load = 1'd0;
     
         
     // instance of pipelined reduction module
@@ -43,7 +43,7 @@ module ntt_montgomery_module(
         end
         else if (en) begin
             // ADD_3Q calculation
-            SUB_a <= a + 32'd36867;
+            SUB_a <= a + 16'd36867;
             SUB_a_pair <= a_pair;
             SUB_omega <= omega;
             SUB_load <= load;
@@ -54,7 +54,7 @@ module ntt_montgomery_module(
             MULT_load <= SUB_load;
             
             // MULT_OMEGA CALCULATION
-            REDUCE_a <= MULT_a * {16'd0, MULT_omega};
+            REDUCE_a <= MULT_a * MULT_omega;
             REDUCE_load <= MULT_load;
             
             /*

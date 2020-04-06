@@ -41,21 +41,23 @@ module encrypter(
         S7   = 4'd8,
         S8   = 4'd9,
         S9   = 4'd10;
-    reg [3:0] encrypter_state, encrypter_state_next;
+    reg [3:0] encrypter_state = HOLD, encrypter_state_next;
     reg done_op1, done_op2;
     wire s_done;
     assign s_done = done_op1 & done_op2;
     
     /* --- POLYNOMIAL RAM 1 --- */    
-    wire [15:0] PR1_doa, PR1_dob, PR1_dia, PR1_dib;
-    wire PR1_wea, PR1_web;
-    wire [10:0] PR1_addra, PR1_addrb;
+    wire [15:0] PR1_doa, PR1_dob;
+    reg [15:0] PR1_dia, PR1_dib;
+    reg PR1_wea, PR1_web;
+    reg [10:0] PR1_addra, PR1_addrb;
     wire [9:0] poly_addr_comp;
     
     /* --- POLYNOMIAL RAM 2 --- */    
-    wire [15:0] PR2_doc, PR2_dod, PR2_dic, PR2_did;
-    wire PR2_wec, PR2_wed;
-    wire [10:0] PR2_addrc, PR2_addrd;
+    wire [15:0] PR2_doc, PR2_dod;
+    reg [15:0] PR2_dic, PR2_did;
+    reg PR2_wec, PR2_wed;
+    reg [10:0] PR2_addrc, PR2_addrd;
     
     /* POLY ARTHIMETIC 1 WIRE */
     reg start_pa1;
@@ -178,102 +180,11 @@ module encrypter(
     assign IR2_di = input2_dia;
     
     single_port_ram #(.MEM_WIDTH(8), .MEM_SIZE(896)) I2_RAM (clk, IR2_we, 1'b1, IR2_addr, IR2_di, IR2_dout);
-       
-    // A port assignments
-    // read access: NTT, Sampler, Encoder, PolyArith_1
-    // write access: NTT, Sampler, Encoder, PolyArith_1
-    assign PR1_addra = (encrypter_state == S1) ? {2'd0, PR_addr_pa2} :
-                        (encrypter_state == S2) ? {2'd2, PR_addr_bs} :
-                        (encrypter_state == S3) ? {2'd1, PR_addr_bs} :
-                        (encrypter_state == S4) ? {2'd3, PR1_addra_enc} :
-                        (encrypter_state == S5) ? {2'd3, PR_addr_pa1} :
-                        (encrypter_state == S6) ? {2'd2, PR_addr_pa1} :
-                        (encrypter_state == S7) ? {2'd2, PR_addra_ntt} :
-                        (encrypter_state == S8) ? {2'd3, PR_addr_pa1} : 11'd0;
-
-   assign PR1_wea = (encrypter_state == S2) ? PR_we_bs :
-                        (encrypter_state == S3) ? PR_we_bs :
-                        (encrypter_state == S4) ? PR1_wea_enc :
-                        (encrypter_state == S5) ? PR_we_pa1 :
-                        (encrypter_state == S6) ? PR_we_pa1 :
-                        (encrypter_state == S7) ? PR_wea_ntt :
-                         (encrypter_state == S8) ? PR_we_pa1 : 1'd0;
-   assign PR1_dia = (encrypter_state == S2) ? PR_di_bs :
-                        (encrypter_state == S3) ? PR_di_bs :
-                        (encrypter_state == S4) ? PR1_dia_enc :
-                        (encrypter_state == S5) ? PR_di_pa1 :
-                        (encrypter_state == S6) ? PR_di_pa1 :
-                        (encrypter_state == S7) ? PR_dia_ntt : 
-                        (encrypter_state == S8) ? PR_di_pa1 : 1'd0;      
-    
-    // B port assignments  
-    // read access: NTT, encoder, PolyArith_1, cpmressor
-    // write access: NTT, encoder, PolyArith_1
-    assign PR1_addrb = (encrypter_state == S4) ? {2'd3, PR1_addrb_enc} :
-                        (encrypter_state == S5) ? {2'd1, PR_addr_pa1} :
-                        (encrypter_state == S6) ? {2'd0, PR_addr_pa1} :
-                        (encrypter_state == S7) ? {2'd2, PR_addrb_ntt} :
-                        (encrypter_state == S8) ? {2'd2, PR_addr_pa2} :
-                        (encrypter_state == S9) ? {2'd3, PR1_addr_comp} : 11'd0;
-                        
-   assign PR1_web = (encrypter_state == S4) ? PR1_web_enc :
-                        (encrypter_state == S7) ? PR_web_ntt : 1'd0;
-   assign PR1_dib = (encrypter_state == S4) ? PR1_dib_enc :
-                        (encrypter_state == S7) ? PR_dib_ntt : 16'd0;  
-    
-    poly_ram #(.INVERSE_GAMMAS(0)) P1_RAM(clk,clk,1'b1, 1'b1, PR1_wea, PR1_web, PR1_addra, PR1_addrb, PR1_dia, PR1_dib, PR1_doa, PR1_dob);  
-    
    
-    // A port assignments
-    // read access: poly encoder, ntt, pa1, pa2, sampler
-    // write access: ntt, pa2, sampler
-    assign PR2_addrc = (encrypter_state == S0) ? {2'd3 , PR_addr_bs} : 
-                        (encrypter_state == S1) ? {2'd3 , PR_addr_pa2} : 
-                        (encrypter_state == S2) ? {2'd3 , PR_addra_ntt} :
-                        (encrypter_state == S3) ? {2'd1 , PR_addr_pa2} :
-                        (encrypter_state == S4) ? {2'd1 , PR_addra_ntt} :
-                        (encrypter_state == S5) ? {2'd1 , PR_addr_pa2} :
-                        (encrypter_state == S6) ? {2'd2 , PR_addr_pa2} :
-                        (encrypter_state == S8) ? {2'd2 , PR_addr_pa2} :
-                        (encrypter_state == S9) ? {2'd2, PR2_addrc_pe} : 11'd0;
-   assign PR2_wec = (encrypter_state == S0) ? PR_we_bs : 
-                        (encrypter_state == S1) ? PR_we_pa2 : 
-                        (encrypter_state == S2) ? PR_wea_ntt :
-                        (encrypter_state == S3) ? PR_we_pa2 :
-                        (encrypter_state == S4) ? PR_wea_ntt :
-                        (encrypter_state == S5) ? PR_we_pa2 :
-                        (encrypter_state == S6) ? PR_we_pa2 :
-                        (encrypter_state == S8) ? PR_we_pa2 : 1'd0;
-   assign PR2_dic = (encrypter_state == S0) ? PR_di_bs : 
-                        (encrypter_state == S1) ? PR_di_pa2 : 
-                        (encrypter_state == S2) ? PR_dia_ntt :
-                        (encrypter_state == S3) ? PR_di_pa2 :
-                        (encrypter_state == S4) ? PR_dia_ntt :
-                        (encrypter_state == S5) ? PR_di_pa2 :
-                        (encrypter_state == S6) ? PR_di_pa2 :
-                        (encrypter_state == S8) ? PR_di_pa2 : 16'd0;      
-    
-    // B port assignments  
-    // read access: ntt, pa1, pa2, poly decoder, gena
-    // write access: ntt, poly decoder, pa2, gena
-    assign PR2_addrd = (encrypter_state == S0) ? {2'd1 , PR2_addrd_pd} : 
-                        (encrypter_state == S1) ? {2'd2 , PR2_addrd_ga} : 
-                        (encrypter_state == S2) ? {2'd3 , PR_addrb_ntt} :
-                        (encrypter_state == S3) ? {2'd3 , PR_addr_pa2} :
-                        (encrypter_state == S4) ? {2'd1 , PR_addrb_ntt} :
-                        (encrypter_state == S5) ? {2'd0 , PR_addr_pa2} :
-                        (encrypter_state == S6) ? {2'd3 , PR_addr_pa2} :
-                        (encrypter_state == S8) ? {2'd1 , PR_addr_pa1} : 11'd0;
-   assign PR2_wed = (encrypter_state == S0) ? PR2_wed_pd : 
-                        (encrypter_state == S1) ? PR2_wed_ga : 
-                        (encrypter_state == S2) ? PR_web_ntt :
-                        (encrypter_state == S4) ? PR_web_ntt : 1'd0;
-   assign PR2_did = (encrypter_state == S0) ? PR2_did_pd : 
-                        (encrypter_state == S1) ? PR2_did_ga : 
-                        (encrypter_state == S2) ? PR_dib_ntt :
-                        (encrypter_state == S4) ? PR_dib_ntt : 16'd0;  
-    
-    poly_ram #(.INVERSE_GAMMAS(1)) P2_RAM(clk,clk,1'b1, 1'b1, PR2_wec, PR2_wed, PR2_addrc, PR2_addrd, PR2_dic, PR2_did, PR2_doc, PR2_dod);  
+   /* --- POLY RAM --- */    
+    poly_ram #(.FILENAME("D:/programming/git_backups/Newhope_Crypto/gammas.txt")) P1_RAM(clk,clk,1'b1, 1'b1, PR1_wea, PR1_web, PR1_addra, PR1_addrb, PR1_dia, PR1_dib, PR1_doa, PR1_dob);  
+ 
+    poly_ram #(.FILENAME("D:/programming/git_backups/Newhope_Crypto/gammas_inv.txt")) P2_RAM(clk,clk,1'b1, 1'b1, PR2_wec, PR2_wed, PR2_addrc, PR2_addrd, PR2_dic, PR2_did, PR2_doc, PR2_dod);  
     
      /* --- OUTPUT RAM --- */
     wire OR_clka, OR_clkb, OR_wea, OR_web;
@@ -331,6 +242,8 @@ module encrypter(
     
     /* --- Start controller logic --- */
     
+    
+    
     // combinational state logic
     always @(*) begin
         encrypter_state_next = encrypter_state;
@@ -375,6 +288,142 @@ module encrypter(
     // sequential state logic
     always @(posedge clk) begin
         encrypter_state <= (rst) ? HOLD : encrypter_state_next;
+    end
+    
+// combinational for PolyRam 1 and 2 logic
+   always @(*) begin 
+        PR1_addra = 11'd0;
+        PR1_wea = 1'd0;
+        PR1_dia = 16'd0;
+        
+        PR1_addrb = 11'd0;
+        PR1_web = 1'd0;
+        PR1_dib = 16'd0;       
+       
+        PR2_addrc = 11'd0;
+        PR2_wec = 1'd0;
+        PR2_dic = 16'd0;
+        
+        PR2_addrd = 11'd0;
+        PR2_wed = 1'd0;
+        PR2_did = 16'd0;     
+       
+        case (encrypter_state) 
+        S0: begin
+            PR2_addrc = {2'd3 , PR_addr_bs};
+            PR2_wec = PR_we_bs;
+            PR2_dic = PR_di_bs;
+            
+            PR2_addrd = {2'd1 , PR2_addrd_pd};
+            PR2_wed = PR2_wed_pd;
+            PR2_did = PR2_did_pd;  
+        end
+        S1: begin
+            PR1_addra = {2'd0, PR_addr_pa2};
+            
+            PR2_addrc = {2'd3 , PR_addr_pa2};
+            PR2_wec = PR_we_pa2;
+            PR2_dic = PR_di_pa2;
+            
+            PR2_addrd = {2'd2 , PR2_addrd_ga};
+            PR2_wed = PR2_wed_ga;
+            PR2_did = PR2_did_ga;  
+        end
+        S2: begin
+            PR1_addra = {2'd2, PR_addr_bs};
+            PR1_wea = PR_we_bs;
+            PR1_dia = PR_di_bs;
+            
+            PR2_addrc = {2'd3 , PR_addra_ntt};
+            PR2_wec = PR_wea_ntt;
+            PR2_dic = PR_dia_ntt;
+            
+            PR2_addrd = {2'd3 , PR_addrb_ntt};
+            PR2_wed = PR_web_ntt;
+            PR2_did = PR_dib_ntt;  
+        end
+        S3: begin
+            PR1_addra = {2'd1, PR_addr_bs};
+            PR1_wea = PR_we_bs;
+            PR1_dia = PR_di_bs;
+            
+            PR2_addrc = {2'd1 , PR_addr_pa2};
+            PR2_wec = PR_we_pa2;
+            PR2_dic = PR_di_pa2;
+            
+            PR2_addrd = {2'd3 , PR_addr_pa2};
+        end
+        S4: begin
+            PR1_addra = {2'd3, PR1_addra_enc};
+            PR1_wea = PR1_wea_enc;
+            PR1_dia = PR1_dia_enc;
+            
+            PR1_addrb = {2'd3, PR1_addrb_enc};
+            PR1_web = PR1_web_enc;
+            PR1_dib = PR1_dib_enc;  
+            
+            PR2_addrc = {2'd1 , PR_addra_ntt};
+            PR2_wec = PR_wea_ntt;
+            PR2_dic = PR_dia_ntt;
+            
+            PR2_addrd = {2'd1 , PR_addrb_ntt};
+            PR2_wed = PR_web_ntt;
+            PR2_did = PR_dib_ntt; 
+        end
+        S5: begin
+            PR1_addra = {2'd3, PR_addr_pa1};
+            PR1_wea = PR_we_pa1;
+            PR1_dia = PR_di_pa1;
+            
+            PR1_addrb = {2'd1, PR_addr_pa1};
+            
+            PR2_addrc = {2'd1 , PR_addr_pa2};
+            PR2_wec = PR_we_pa2;
+            PR2_dic = PR_di_pa2;
+            
+            PR2_addrd = {2'd0 , PR_addr_pa2};
+        end
+        S6: begin
+            PR1_addra = {2'd2, PR_addr_pa1};
+            PR1_wea = PR_we_pa1;
+            PR1_dia = PR_di_pa1;
+            
+            PR1_addrb = {2'd0, PR_addr_pa1};
+            
+            PR2_addrc = {2'd2 , PR_addr_pa2};
+            PR2_wec = PR_we_pa2;
+            PR2_dic = PR_di_pa2;
+            
+            PR2_addrd = {2'd3 , PR_addr_pa2};
+        end
+        S7: begin
+            PR1_addra = {2'd2, PR_addra_ntt};
+            PR1_wea = PR_wea_ntt;
+            PR1_dia = PR_dia_ntt;
+            
+            PR1_addrb = {2'd2, PR_addrb_ntt};
+            PR1_web = PR_web_ntt;
+            PR1_dib = PR_dib_ntt;  
+        end
+        S8: begin
+            PR1_addra = {2'd3, PR_addr_pa1};
+            PR1_wea = PR_we_pa1;
+            PR1_dia = PR_di_pa1;
+            
+            PR1_addrb = {2'd2, PR_addr_pa2};
+            
+            PR2_addrc = {2'd2 , PR_addr_pa2};
+            PR2_wec = PR_we_pa2;
+            PR2_dic = PR_di_pa2;
+            
+            PR2_addrd = {2'd1 , PR_addr_pa1};
+        end
+        S9: begin
+            PR1_addrb = {2'd3, PR1_addr_comp};
+            
+            PR2_addrc = {2'd2, PR2_addrc_pe};
+        end
+        endcase
     end
     
     // sequential output logic

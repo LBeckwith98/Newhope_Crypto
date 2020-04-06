@@ -31,7 +31,9 @@ module poly_sub_coeff(
   output [15:0] dout
   );
   
-  reg [15:0] NEWHOPE_Q = 12289;
+  localparam 
+    NEWHOPE_Q = 16'd12289;
+    
   reg [15:0] red_in;
   reg valid;
   wire [13:0] red_out;
@@ -43,7 +45,7 @@ module poly_sub_coeff(
   always @(posedge clk) begin
     valid <= 1'b0;
     if (start) begin
-        red_in <= (dia > dib) ? (dia - dib) : (dib - dia);
+        red_in <= dia + 16'd36867 - dib;
         valid <= 1'b1;
     end
   end

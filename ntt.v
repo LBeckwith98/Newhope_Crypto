@@ -51,8 +51,8 @@ module ntt(
    // control registers
    reg [3:0] count;
    reg ram_we;
-   assign ram_wea = (state == Sbitrev) ? bitrev_ram_we : ram_we & bf_valid;
-   assign ram_web = (state == Sbitrev) ? bitrev_ram_we : ram_we & bf_valid;
+   assign ram_wea = (state == Sbitrev & bitrev_addr_a != bitrev_addr_pair) ? bitrev_ram_we : ram_we & bf_valid;
+   assign ram_web = (state == Sbitrev & bitrev_addr_a != bitrev_addr_pair) ? bitrev_ram_we : ram_we & bf_valid;
    assign ram_addra = (state == Sbitrev) ? bitrev_addr_a :
                        (state == Snttunload) ? addr_a_w : addr_a;
    assign ram_addrb = (state == Sbitrev) ? bitrev_addr_pair : 

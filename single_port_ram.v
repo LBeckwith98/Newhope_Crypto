@@ -9,8 +9,8 @@
 
 
 module single_port_ram (clk, we, en, addr, di, dout);
-    parameter MEM_WIDTH = 8,
-              MEM_SIZE = 896;
+    parameter MEM_WIDTH = 32,
+              MEM_SIZE = 24;
               
     input clk;
     input we;
@@ -21,11 +21,13 @@ module single_port_ram (clk, we, en, addr, di, dout);
     reg [MEM_WIDTH-1:0] RAM [MEM_SIZE-1:0];
     reg [MEM_WIDTH-1:0] dout;
     
-    always @(posedge clk)begin
-         if (en)begin
-            if (we)
-                RAM[addr] <= di;
-            else
+    always @(posedge clk) begin
+         if (en) begin
+             if (we) begin
+                 RAM[addr] <= di;
+                 dout <= di;
+             end
+             else
                 dout <= RAM[addr];
          end
     end

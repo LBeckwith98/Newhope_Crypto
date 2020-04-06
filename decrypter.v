@@ -44,10 +44,10 @@ module decrypter(
         GAMMA_MULT = 3'd5,
         SUB        = 3'd6,
         DECODE     = 3'd7;
-    reg [2:0] decrypter_state, decrypter_state_next;
+    reg [2:0] decrypter_state = HOLD, decrypter_state_next;
           
     /* POLY DEC WIRES */
-    reg start_pd;
+    reg start_pd = 1'b0;
     wire done_pd;
     wire [9:0] in_addr_pd;
     wire [8:0] poly_addra_pd;
@@ -55,7 +55,7 @@ module decrypter(
     wire poly_wea_pd; 
     
     /* DECOMPRESSOR WIRES */
-    reg start_decomp;
+    reg start_decomp = 1'b0;
     wire done_decomp;
     wire [9:0] in_addrb_decomp;
     wire poly_web_decomp;
@@ -63,7 +63,7 @@ module decrypter(
     wire [15:0] poly_dib_decomp;
     
     /* DECODER WIRES */
-    reg start_dec;
+    reg start_dec = 1'b0;
     wire done_dec;
     wire out_we_dec;
     wire [2:0] out_addr_dec;
@@ -71,67 +71,134 @@ module decrypter(
     wire [8:0] poly_addra_dec;
     
     /* POLY ARTHIMETIC WIRE */
-    reg start_pa;
+    reg start_pa = 1'b0;
     wire done_pa;
-    reg [1:0] op_code_pa;
+    reg [1:0] op_code_pa  = 2'b00;
     wire poly_wea_pa;
     wire [8:0] poly_addr_pa;
     wire [15:0] poly_dia_pa;
     
     /* NTT WIRES */
-    reg start_ntt;
+    reg start_ntt = 1'b0;
     wire done_ntt;
     wire poly_wea_ntt, poly_web_ntt;
     wire [8:0] poly_addra_ntt, poly_addrb_ntt;
-    wire [15:0] poly_dia_ntt, poly_dib_ntt, poly_doa_ntt, poly_dob_ntt;
+    wire [15:0] poly_dia_ntt, poly_dib_ntt;
     
     /* ---  INPUT RAM --- */
-    wire IR_clka, IR_clkb, IR_wea;
-    wire [10:0] IR_addra, IR_addrb;
-    wire [7:0] IR_dia, IR_doa, IR_dob;    
+    wire IR_wea;
+    wire [7:0] IR_dia;
+    reg [10:0] IR_addra;
+    wire [10:0] IR_addrb;
+    wire [7:0] IR_doa, IR_dob;    
     
-    assign IR_addra = (decrypter_state == HOLD) ? input_addra :
-                        (decrypter_state == UNPACK_1) ? {1'b0, in_addr_pd} :
-                        (decrypter_state == UNPACK_2) ? {1'b0, in_addr_pd} + 11'd1088 : 11'd0; // poly_decode offest for 2nd val
     assign IR_wea = input_wea;
     assign IR_dia = input_dia;
     assign IR_addrb = {1'b0, in_addrb_decomp} + 11'd896; // decomp addr is shifted
+    
+    // combinational state input_ram MUX    
+    always @(*) begin
+        IR_addra = 11'd0;
+        
+        case (decrypter_state) 
+        HOLD: begin
+            IR_addra = input_addra;
+        end
+        UNPACK_1: begin
+            IR_addra = {1'b0, in_addr_pd};
+        end
+        UNPACK_2: begin
+            IR_addra = {1'b0, in_addr_pd} + 11'd1088;
+        end
+        endcase
+    end
+    
     dual_port_ram #(.MEM_WIDTH(8), .MEM_SIZE(1984)) I_RAM (clk,clk,1'b1,1'b1,IR_wea,1'b0,IR_addra,IR_addrb,IR_dia,8'd0,IR_doa,IR_dob);
     
     /* --- POLYNOMIAL RAM --- */    
-    wire [15:0] PR_doa, PR_dob, PR_dia, PR_dib;
-    wire PR_wea, PR_web;
-    wire [10:0] PR_addra, PR_addrb;
+    wire [15:0] PR_doa, PR_dob;
+    reg [15:0] PR_dia, PR_dib;
+    reg PR_wea, PR_web;
+    reg [10:0] PR_addra, PR_addrb;
     
-   
-    // A port assignments
-    assign PR_addra = (decrypter_state == UNPACK_1) ? {2'd3, poly_addra_pd} :
-                      (decrypter_state == UNPACK_2) ? {2'd1, poly_addra_pd} :
-                      (decrypter_state == INV_NTT) ? {2'd3, poly_addra_ntt} :
-                      (decrypter_state == DECODE) ? {2'd3, poly_addra_dec} :
-                      {2'd3, poly_addr_pa}; // poly_arith
-   assign PR_wea = (decrypter_state == UNPACK_1 || decrypter_state == UNPACK_2) ? poly_wea_pd :
-                      (decrypter_state == INV_NTT) ? poly_wea_ntt :
-                      (decrypter_state == DECODE) ? 1'd0 :
-                      poly_wea_pa; // poly_arith
-   assign PR_dia = (decrypter_state == UNPACK_1 || decrypter_state == UNPACK_2) ? poly_dia_pd :
-                      (decrypter_state == INV_NTT) ? poly_dia_ntt :
-                      (decrypter_state == DECODE) ? 16'd0:
-                      poly_dia_pa; // poly_arithder            
+    // combinational state poly_ram MUX
+    always @(*) begin
+        PR_addra = 11'd0;
+        PR_wea = 1'd0;
+        PR_dia = 16'd0;
+        PR_addrb = 11'd0;
+        PR_web = 1'd0;
+        PR_dib = 16'd0;
+            
+        case (decrypter_state) 
+        HOLD: begin
+            PR_addra = 11'd0;
+            PR_wea = 1'd0;
+            PR_dia = 16'd0;
+            PR_addrb = 11'd0;
+            PR_web = 1'd0;
+            PR_dib = 16'd0;
+        end
+        UNPACK_1: begin
+            PR_addra = {2'b11, poly_addra_pd};
+            PR_wea = poly_wea_pd;
+            PR_dia = poly_dia_pd;
+            PR_addrb = {2'b10, poly_addrb_decomp};
+            PR_web = poly_web_decomp;
+            PR_dib = poly_dib_decomp;
+        end
+        UNPACK_2: begin
+            PR_addra = {2'b01, poly_addra_pd};
+            PR_wea = poly_wea_pd;
+            PR_dia = poly_dia_pd;
+            PR_addrb = {2'b10, poly_addrb_decomp};
+            PR_web = poly_web_decomp;
+            PR_dib = poly_dib_decomp;
+        end
+        MULT: begin
+            PR_addra = {2'b11, poly_addr_pa};
+            PR_wea = poly_wea_pa;
+            PR_dia = poly_dia_pa;
+            PR_addrb = {2'b01, poly_addr_pa};
+            PR_web = 1'd0;
+            PR_dib = 16'd0;
+        end
+        INV_NTT: begin
+            PR_addra = {2'b11, poly_addra_ntt};
+            PR_wea = poly_wea_ntt;
+            PR_dia = poly_dia_ntt;
+            PR_addrb = {2'b11, poly_addrb_ntt};
+            PR_web = poly_web_ntt;
+            PR_dib = poly_dib_ntt;
+        end
+        GAMMA_MULT : begin
+            PR_addra = {2'b11, poly_addr_pa};
+            PR_wea = poly_wea_pa;
+            PR_dia = poly_dia_pa;
+            PR_addrb = {2'b00, poly_addr_pa};
+            PR_web = 1'd0;
+            PR_dib = 16'd0;
+        end
+        SUB: begin
+            PR_addra = {2'b11, poly_addr_pa};
+            PR_wea = poly_wea_pa;
+            PR_dia = poly_dia_pa;
+            PR_addrb = {2'b10, poly_addr_pa};
+            PR_web = 1'd0;
+            PR_dib = 16'd0;
+        end
+        DECODE: begin
+            PR_addra = {2'b11, poly_addra_dec};
+            PR_wea = 1'd0;
+            PR_dia = 16'd0;
+            PR_addrb = 11'd0;
+            PR_web = 1'd0;
+            PR_dib = 16'd0;
+        end
+        endcase
+    end
     
-    // B port assignments  
-    assign PR_addrb = (decrypter_state == UNPACK_1 || decrypter_state == UNPACK_2) ? {2'd2, poly_addrb_decomp} :
-                      (decrypter_state == INV_NTT) ? {2'd3, poly_addrb_ntt} :
-                      (decrypter_state == MULT) ? {2'd1, poly_addr_pa} : 
-                      (decrypter_state == GAMMA_MULT) ? {2'd0, poly_addr_pa} : {2'd2, poly_addr_pa}; // poly_arithmetic
-    assign PR_web = (decrypter_state == UNPACK_1 || decrypter_state == UNPACK_2) ? poly_web_decomp :
-                    (decrypter_state == INV_NTT) ? poly_web_ntt :
-                    1'd0; // poly_arithmetic
-    assign PR_dib = (decrypter_state == UNPACK_1 || decrypter_state == UNPACK_2) ? poly_dib_decomp :
-                    (decrypter_state == INV_NTT) ? poly_dib_ntt :
-                    16'd0; // poly_arithmetic 
-    
-    poly_ram #(.INVERSE_GAMMAS(1)) P_RAM(clk,clk,1'b1, 1'b1, PR_wea, PR_web, PR_addra, PR_addrb, PR_dia, PR_dib, PR_doa, PR_dob);       
+    poly_ram #(.FILENAME("D:/programming/git_backups/Newhope_Crypto/gammas_inv.txt")) P_RAM(clk,clk,1'b1, 1'b1, PR_wea, PR_web, PR_addra, PR_addrb, PR_dia, PR_dib, PR_doa, PR_dob);       
         
     /* --- OUTPUT RAM --- */
     wire OR_we;
@@ -163,10 +230,8 @@ module decrypter(
     /* --- Start controller logic --- */
     
     // combinational state logic
-    always @(*) begin
-        decrypter_state_next = decrypter_state;
-    
-        case (decrypter_state_next) 
+    always @(*) begin  
+        case (decrypter_state) 
         HOLD: begin
             decrypter_state_next = (start) ? UNPACK_1 : HOLD;
         end
@@ -208,6 +273,7 @@ module decrypter(
         start_ntt <= 1'b0;
         start_dec <= 1'b0;
         decrypter_done <= 1'b0;
+        op_code_pa <= 2'd0;
     
         case (decrypter_state) 
         HOLD: begin
@@ -228,6 +294,7 @@ module decrypter(
             end
         end
         MULT: begin
+            op_code_pa <= 2'd0; // mult
             if (done_pa) begin
                 start_ntt <= 1'b1;
             end
@@ -239,12 +306,14 @@ module decrypter(
             end
         end
         GAMMA_MULT: begin
+            op_code_pa <= 2'd3; // mult_precomp
             if (done_pa) begin
                 start_pa <= 1'b1;
                 op_code_pa <= 2'd2; // sub
             end
         end
         SUB: begin
+            op_code_pa <= 2'd2; // sub
             if (done_pa) begin
                 start_dec <= 1'b1;
             end

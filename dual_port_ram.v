@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Create Date: 05/08/2019 03:18:03 PM
-// Module Name: output_ram
+// Module Name: dual_port_ram
 // Description: Vivado BRAM block. 
 // (https://www.xilinx.com/support/documentation/sw_manuals/xilinx2018_3/ug901-vivado-synthesis.pdf)
 // Page 122

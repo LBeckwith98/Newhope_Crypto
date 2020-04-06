@@ -85,8 +85,6 @@ module tb_newhope;
     
         // initialize signals to zero
         clk = 0;
-        rst_enc = 0;
-        rst_dec = 0;
         input1_dia_enc = 0;
         input1_wea_enc = 0;
         input2_wea_enc = 0;
@@ -105,13 +103,15 @@ module tb_newhope;
         error_count = 0;
         match_count = 0;
         total_errors = 0;
+        
+        rst_enc = 1'b1; #(`P); rst_enc = 1'b0; #(`P); 
+        rst_dec = 1'b1; #(`P); rst_dec = 1'b0; #(`P); 
+        
         // read in test data
         $readmemh("D:/programming/git_backups/TMP_NewHope/encrypter.txt", testvectors_enc);
         $readmemh("D:/programming/git_backups/TMP_NewHope/decrypter.txt", testvectors_dec);
+        #(`P);
          for (test_num = 0; test_num < 100; test_num=test_num+1) begin
-            rst_enc = 1'b1; #(`P); rst_enc = 1'b0; #(`P); 
-            rst_dec = 1'b1; #(`P); rst_dec = 1'b0; #(`P); 
-         
             // 1) initialize test inputs
             // enc inputs
             m = testvectors_enc[test_num][7936-256:7935];
@@ -121,7 +121,7 @@ module tb_newhope;
             
             // dec inputs
             sk = testvectors_dec[test_num][8704:8704+7167];
-            @ (negedge clk);
+            for (k = 0; k < 10; k = k + 1) #(`P);
             
             // 2) load input into encrypter 
             // load coin           
@@ -151,6 +151,7 @@ module tb_newhope;
             
             // 3) run encrypter
             $display("Start Encryption"); 
+            rst_enc = 1'b1; #(`P); rst_enc = 1'b0; #(`P); 
             start_enc = 1'b1; #(`P);  start_enc = 1'b0; #(`P); 
             while (done_enc != 1) #(`P);
             $display("Encryption done"); 
@@ -160,6 +161,7 @@ module tb_newhope;
                 output_addr_enc = k; #(`P);
                 input_addra_dec = k;
                 input_dia_dec = output_do_enc;
+                $display("Dec input %d: %h", k, output_do_enc);
                 input_wea_dec = 1'b1; #(`P); input_wea_dec = 1'b0; #(`P);
             end
             
@@ -172,6 +174,7 @@ module tb_newhope;
             
             // 6) run decrypter
             $display("Start Decryption"); 
+            rst_dec = 1'b1; #(`P); rst_dec = 1'b0; #(`P);
             start_dec = 1'b1; #(`P);  start_dec = 1'b0; #(`P); 
             while (done_dec != 1) #(`P);
             $display("Decryption done"); 

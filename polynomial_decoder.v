@@ -33,7 +33,7 @@ module polynomial_decoder(
     // output RAM signals
     output reg poly_wea,
     output reg [8:0] poly_addra,
-    output reg [15:0] poly_dia
+    output [15:0] poly_dia
     );
     localparam
         HOLD    = 4'd0,
@@ -45,10 +45,13 @@ module polynomial_decoder(
         LOAD_A5 = 4'd6,
         LOAD_A6 = 4'd7,
         FINAL   = 4'd8;
-    reg [3:0] state, state_next;
+    reg [3:0] state = HOLD, state_next;
 
-    reg [6:0] i;
+    reg [6:0] i = 0;
     reg [7:0] a0, a1, a2, a3, a4, a5, a6; // an corresponds to a_(i+n) in algorithmic description
+    
+    reg [15:0] poly_out;
+    assign poly_dia = poly_out;
     
      // combinational state logic
     always @(*) begin
@@ -99,7 +102,7 @@ module polynomial_decoder(
         // poly ram defaults
         poly_wea   <= 0;
         poly_addra <= 0;
-        poly_dia   <= 0;
+        poly_out   <= 0;
     
         if (rst == 1'b1) begin
             i <= 0;
@@ -119,7 +122,7 @@ module polynomial_decoder(
                 if (i != 0) begin
                     poly_addra <= ((i-1) << 2) | 3;
                     poly_wea <= 1;
-                    poly_dia <= {2'b00, a6, a5[7:2]};
+                    poly_out <= {2'b00, a6, a5[7:2]};
                 end
             end
             LOAD_A1: begin
@@ -133,7 +136,7 @@ module polynomial_decoder(
                 // store r_(4i)
                 poly_addra <= (i << 2);
                 poly_wea <= 1;
-                poly_dia <= {2'b00, a1[5:0], a0};
+                poly_out <= {2'b00, a1[5:0], a0};
             end      
             LOAD_A3: begin
                 a3 <= byte_do;
@@ -146,7 +149,7 @@ module polynomial_decoder(
                 // store r_(4i+1)
                 poly_addra <= (i << 2) | 1;
                 poly_wea <= 1;
-                poly_dia <= {2'b00, a3[3:0], a2, a1[7:6]};
+                poly_out <= {2'b00, a3[3:0], a2, a1[7:6]};
             end
             LOAD_A5: begin
                 a5 <= byte_do;
@@ -160,7 +163,7 @@ module polynomial_decoder(
                 // store r_(4i+2)
                 poly_addra <= (i << 2) | 2;
                 poly_wea <= 1;
-                poly_dia <= {2'b00, a5[1:0], a4, a3[7:4]};
+                poly_out <= {2'b00, a5[1:0], a4, a3[7:4]};
             end
             FINAL: begin
                 done <= 1;
@@ -168,7 +171,7 @@ module polynomial_decoder(
                 // store r_(4i+3) from final round
                 poly_addra <= (127 << 2) | 3;
                 poly_wea <= 1;
-                poly_dia <= {2'b00, a6, a5[7:2]};
+                poly_out <= {2'b00, a6, a5[7:2]};
             end
             endcase
         end

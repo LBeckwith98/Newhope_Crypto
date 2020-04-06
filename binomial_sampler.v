@@ -104,32 +104,32 @@ module binomial_sampler(
     // Seq state logic
     always @(posedge clk) begin
         if (rst == 1'b1) begin
-            state <= #1 WAIT;
+            state <=  WAIT;
         end else begin
-            state <= #1 state_next;
+            state <=  state_next;
         end
     end
 
     // output (action) logic
     always @(posedge clk) begin
         // default outputs
-        done <= #1 1'b0;
-        parse_done <= #1 1'b0;
+        done <=  1'b0;
+        parse_done <=  1'b0;
 
         // output ram (polynomial)
-        poly_wea <= #1 1'b0;
-        poly_addra <= #1 9'b0;
-        poly_dia <= #1 16'b0;
+        poly_wea <=  1'b0;
+        poly_addra <=  9'b0;
+        poly_dia <=  16'b0;
 
         // SHAKE
-        shake_rst <= #1 1'b0;
-        // shake_in <= #1 32'b0;
-        shake_in_ready <= #1 1'b0;
-        shake_is_last <= #1 1'b0;
-        shake_byte_num <= #1 2'b0;
+        shake_rst <=  1'b0;
+        // shake_in <=  32'b0;
+        shake_in_ready <=  1'b0;
+        shake_is_last <=  1'b0;
+        shake_byte_num <=  2'b0;
 
         // input ram (byte)
-        byte_addr <= #1 3'b0;
+        byte_addr <=  3'b0;
 
         // parse state data
         parse_state <= HAMMING_WEIGHT;
@@ -140,7 +140,7 @@ module binomial_sampler(
 
         // reset logic
         if (rst == 1'b1) begin
-            shake_rst <= #1 1'b1;
+            shake_rst <=  1'b1;
             j <= 0;
             i <= 0;
         end else begin
@@ -148,67 +148,67 @@ module binomial_sampler(
             case(state_next)
                 WAIT: begin
                     // default outputs -> just waiting
-                    i <= #1 0; 
-                    j <= #1 0;
-                    shake_rst <= #1 1'b1;
+                    i <=  0; 
+                    j <=  0;
+                    shake_rst <=  1'b1;
 
                     if (start) begin
-                        shake_rst <= #1 1'b0;
-                        j <= #1 j + 1;
+                        shake_rst <=  1'b0;
+                        j <=  j + 1;
                     end
                 end
                 LOAD_SHAKE: begin
-                    shake_rst <= #1 1'b0;
+                    shake_rst <=  1'b0;
                     if (j < 9) begin
                         // load from RAM
-                        byte_addr <= #1 j[2:0];
-                        j <= #1 j + 1;
+                        byte_addr <=  j[2:0];
+                        j <=  j + 1;
 
                         // input into SHAKE
                         if (j > 0)
-                            shake_in_ready <= #1 1'b1;
+                            shake_in_ready <=  1'b1;
                     end else begin
                         // last load in, append nonce and i
-                        shake_in_ready <= #1 1'b1;
-                        shake_is_last <= #1 1'b1;
-                        shake_byte_num <= #1 2'd2;
+                        shake_in_ready <=  1'b1;
+                        shake_is_last <=  1'b1;
+                        shake_byte_num <=  2'd2;
 
                     end
                 end
                 WAIT_SHAKE: begin
                     // default outputs
-                    j <= #1 0;
+                    j <=  0;
                 end
                 PARSE: begin
                     // hand outputs of SHAKE
                     case (parse_state) 
                         HAMMING_WEIGHT: begin
-                            hw_a <= #1 shake_out[16*j+7]  + shake_out[16*j+6]  + shake_out[16*j+5]  + shake_out[16*j+4]  + shake_out[16*j+3]  + shake_out[16*j+2]  + shake_out[16*j+1] + shake_out[16*j+0];       //shake_out[2*j+7:2*j];
-                            hw_b <= #1 shake_out[16*j+15] + shake_out[16*j+14] + shake_out[16*j+13] + shake_out[16*j+12] + shake_out[16*j+11] + shake_out[16*j+10] + shake_out[16*j+9] + shake_out[16*j+8]; //shake_out[2*j+15:2*j+8];
-                            parse_state <= #1 CALCULATE;
+                            hw_a <=  shake_out[16*j+7]  + shake_out[16*j+6]  + shake_out[16*j+5]  + shake_out[16*j+4]  + shake_out[16*j+3]  + shake_out[16*j+2]  + shake_out[16*j+1] + shake_out[16*j+0];       //shake_out[2*j+7:2*j];
+                            hw_b <=  shake_out[16*j+15] + shake_out[16*j+14] + shake_out[16*j+13] + shake_out[16*j+12] + shake_out[16*j+11] + shake_out[16*j+10] + shake_out[16*j+9] + shake_out[16*j+8]; //shake_out[2*j+15:2*j+8];
+                            parse_state <=  CALCULATE;
                         end
                         CALCULATE: begin
-                            r_val <= #1 hw_a + 12289 - hw_b; // q = 12289
-                            r_addr <= #1 64*i + j;
-                            j <= #1 j + 1; // latch probably
-                            parse_state <= #1 STORES;
+                            r_val <=  hw_a + 12289 - hw_b; // q = 12289
+                            r_addr <=  64*i + j;
+                            j <=  j + 1; // latch probably
+                            parse_state <=  STORES;
                         end 
                         STORES: begin
-                            poly_wea <= #1 1'b1;
-                            poly_addra <= #1 r_addr;
-                            poly_dia <= #1 r_val;
+                            poly_wea <=  1'b1;
+                            poly_addra <=  r_addr;
+                            poly_dia <=  r_val;
                             // need exit condition
                             parse_state <= HAMMING_WEIGHT;
                             
                             if (j == 64) begin
-                                parse_done <= #1 1'b1;
-                                shake_rst <= #1 1'b1;
-                                j <= #1 0;
+                                parse_done <=  1'b1;
+                                shake_rst <=  1'b1;
+                                j <=  0;
 
                                 if (i == 7) begin
-                                    done <= #1 1'b1;
+                                    done <=  1'b1;
                                 end else begin
-                                    i <= #1 i + 1;
+                                    i <=  i + 1;
                                 end
                             end
                         end

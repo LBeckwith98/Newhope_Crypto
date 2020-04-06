@@ -42,11 +42,11 @@ module decoder(
         S1   = 4'd2,
         S2   = 4'd3,
         S3   = 4'd4;
-    reg [2:0] state, state_next;
+    reg [2:0] state = HOLD, state_next;
 
     // combinational state logic
-    reg[7:0] i;
-    reg [15:0] t;
+    reg[7:0] i = 0;
+    reg [15:0] t = 0;
     wire [4:0] bit_sel;
     assign bit_sel = {i[4:3], 3'd7-i[2:0]}; // store order is byte-wise little endian
     
