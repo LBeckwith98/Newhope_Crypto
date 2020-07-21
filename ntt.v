@@ -15,8 +15,6 @@ module ntt(
     input [15:0] ram_doa,
     input [15:0] ram_dob
     );
-    
-    parameter BITREV = 1'b1;
 
    // FSM states
    localparam 
@@ -24,7 +22,7 @@ module ntt(
      Sbitrev       = 2'd1,
      Snttload      = 2'd2, // running NTT
      Snttunload    = 2'd3;
-   reg  [1:0] state = Swait, state_next;  
+   reg  [1:0] state, state_next;  
    
    localparam PIPELINE_LENGTH = 3'd7;
    reg last_bf_loaded;
@@ -85,11 +83,11 @@ module ntt(
     
     // combinational state logic
    always @(*) begin
-      state_next = Swait;
+      state_next = state;
       case (state)
       Swait: begin
-        state_next = (start == 1'b1 && (inverse == 1'b0 || (inverse == 1'b1 && BITREV == 0))) ? Snttload :
-                        (start == 1'b1 && inverse == 1'b1 && BITREV == 1) ? Sbitrev : Swait;
+        state_next = (start == 1'b1 & inverse == 1'b0) ? Snttload :
+        (start == 1'b1 & inverse == 1'b1) ? Sbitrev : Swait;
       end
       Sbitrev: begin
         state_next = (bitrev_addr_a == 9'd511) ? Snttload : Sbitrev;

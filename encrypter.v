@@ -205,7 +205,7 @@ module encrypter(
     poly_arithmetic POLY_ARITH2(clk, rst, start_pa2, done_pa2, op_code_pa2, PR_we_pa2,
                                 PR_addr_pa2, PR_do1_pa2, PR_do2_pa2, PR_di_pa2);
     
-    ntt_old NTT(clk, rst, start_ntt, inverse_ntt, done_ntt, PR_wea_ntt, PR_web_ntt,
+    ntt NTT(clk, rst, start_ntt, inverse_ntt, done_ntt, PR_wea_ntt, PR_web_ntt,
             PR_addra_ntt, PR_addrb_ntt, PR_dia_ntt, PR_dib_ntt, 
             PR_doa_ntt, PR_dob_ntt);
     

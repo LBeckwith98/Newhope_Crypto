@@ -20,8 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module encoder( 
-    // basic inputs
+module encoder( // basic inputs
     input clk,
     input rst,
     // control inputs

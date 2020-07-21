@@ -119,14 +119,11 @@ module binomial_sampler(
                     end
                 end
                 SETUP_SEED: begin
-                    if (j < 10) begin
+                    if (j < 8) begin
                         byte_addr <= j;
-                        
+                        seed[j*32+:32] <= byte_do;
                         j <= j + 1;
-                        if (j > 1)
-                            seed[(j-2)*32+:32] <= byte_do;
                     end else begin
-                        j <= j;
                         reseed <= 1'b1;
                     end
                 end

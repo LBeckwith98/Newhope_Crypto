@@ -27,11 +27,11 @@ module compressor(
     // control inputs
     input start,
     output reg done,
-    // output RAM signals
+    // Input RAM signals
     output reg [7:0] byte_addr,
     output reg [7:0] byte_di,
     output reg byte_we,
-    // Input RAM signals
+    // output RAM signals
     output [8:0] poly_addra,
     input [15:0] poly_doa
     );
@@ -47,10 +47,10 @@ module compressor(
         LOAD_T6_STORE_H1 = 4'd7,
         LOAD_T7          = 4'd8,
         FINAL_STORE_H3    = 4'd9;
-    reg [3:0] state = HOLD, state_next;    
+    reg [3:0] state, state_next;    
     
-    reg [6:0] L = 0;
-    reg [2:0] j = 0;
+    reg [6:0] L;
+    reg [2:0] j;
     assign poly_addra = {L[5:0], j};
     
     reg [2:0] t0, t1, t2, t3, t4, t5, t6, t7;
@@ -68,7 +68,7 @@ module compressor(
     
     // combinational state logic
     always @(*) begin
-        state_next = HOLD;
+        state_next = state;
     
         case (state) 
         HOLD: begin
@@ -129,8 +129,6 @@ module compressor(
             case (state) 
             HOLD: begin
                 byte_addr <= 0;
-                j <= 0;
-                L <= 0;
                 if (start) begin
                     j <= j + 1;
                 end                

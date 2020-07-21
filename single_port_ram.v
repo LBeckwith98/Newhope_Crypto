@@ -10,8 +10,7 @@
 
 module single_port_ram (clk, we, en, addr, di, dout);
     parameter MEM_WIDTH = 32,
-              MEM_SIZE = 24,
-              FILENAME = "";
+              MEM_SIZE = 24;
               
     input clk;
     input we;
@@ -32,12 +31,4 @@ module single_port_ram (clk, we, en, addr, di, dout);
                 dout <= RAM[addr];
          end
     end
-    
-    // initialize top of RAM with gammas_inv_montgomery
-    initial begin
-      if (FILENAME != "") begin
-        $readmemh(FILENAME, RAM);
-      end
-    end
-    
 endmodule

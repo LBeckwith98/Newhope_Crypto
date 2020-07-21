@@ -244,7 +244,7 @@ module keygen(
         endcase
     end
     
-    dual_port_ram #(.WIDTH(32), .LENGTH(16)) I_RAM (clk, clk,en,en,IR_wea,IR_web,IR_addra,IR_addrb,IR_dia,IR_dib,IR_doa,IR_dob);
+    dual_port_ram #(.MEM_WIDTH(32), .MEM_SIZE(16)) I_RAM (clk, clk,en,en,IR_wea,IR_web,IR_addra,IR_addrb,IR_dia,IR_dib,IR_doa,IR_dob);
     
     /* --- POLY RAM --- */    
     poly_ram #(.LENGTH(1024)) P1_RAM(clk,clk,en,en,PR1_wea,PR1_web,PR1_addra,PR1_addrb,PR1_dia,PR1_dib,PR1_doa,PR1_dob);  
@@ -336,7 +336,7 @@ module keygen(
         endcase
     end    
    
-    dual_port_ram #(.WIDTH(8), .LENGTH(1824)) O_RAM (clk,clk,en,en,OR_wea,OR_web,OR_addra,OR_addrb,OR_dia,OR_dib,OR_doa,OR_dob);
+    dual_port_ram #(.MEM_WIDTH(8), .MEM_SIZE(1824)) O_RAM (clk,clk,en,en,OR_wea,OR_web,OR_addra,OR_addrb,OR_dia,OR_dib,OR_doa,OR_dob);
 
     // combinational state outram MUX    
     always @(*) begin
@@ -394,7 +394,7 @@ module keygen(
     poly_arithmetic POLY_ARITH1(clk, rst, start_pa, done_pa, op_code_pa, PR_we_pa,
                                 PR_addr_pa, PR_do1_pa, PR_do2_pa, PR_di_pa);
    
-    ntt_old NTT(clk, rst, start_ntt, 1'd0, done_ntt, PR_we1_ntt, PR_we2_ntt,
+    ntt NTT(clk, rst, start_ntt, 1'd0, done_ntt, PR_we1_ntt, PR_we2_ntt,
                 PR_addr1_ntt, PR_addr2_ntt, PR_di1_ntt, PR_di2_ntt, 
                 PR_do1_ntt, PR_do2_ntt);
 
