@@ -1,46 +1,48 @@
 `timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 07/16/2020 06:07:09 PM
+// Design Name: 
+// Module Name: binomial_sampler_pl
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
 
 
-module binomial_sampler(
+module binomial_sampler_pl(
     // basic inputs
     input clk,
     input rst,
     // control inputs
     input start,
     output reg done = 0,
-    input reseed_needed,
-    // input RAM signals
-    output reg [2:0] byte_addr = 0,
-    input [31:0] byte_do,
     // output RAM signals
     output reg poly_wea = 0,
     output reg [8:0] poly_addra = 0,
     output reg [15:0] poly_dia = 0,
-    // Trivium module signals
-    output reg [255:0] seed = 0,
-    output reg reseed = 0,
-    input reseed_ack,
-	input [127:0] rdi_data,
-	input rdi_valid,
-	output reg rdi_ready = 0
+    // RDI buffer signals
+    output reg rdi_ready,
+    input [127:0] rdi_data
     );
-    
-//    always @(posedge clk) begin
-//        if (poly_wea) begin
-//            $display("BS,%d,%h",poly_addra,poly_dia);
-//        end
-//    end
     
     // state variables
     localparam 
         WAIT       = 2'd0,
-        SETUP_SEED = 2'd1,
-        RUN_PRNG   = 2'd2, 
-        PARSE      = 2'd3;
+        PARSE      = 2'd1;
     reg [1:0]  state;
     reg [1:0] state_next;
     reg [15:0] i, j;
-    reg parse_done;
 
     // PARSE Step
     localparam HAMMING_WEIGHT = 2'd0, CALCULATE = 2'd1, STORE = 2'd2;
@@ -53,18 +55,10 @@ module binomial_sampler(
     always @(*) begin
         case(state)
             WAIT: begin
-                state_next = (start & reseed_needed) ? SETUP_SEED 
-                             : (start & ~reseed_needed) ? RUN_PRNG : WAIT;
-            end
-            SETUP_SEED: begin
-                state_next = (reseed_ack) ? RUN_PRNG : SETUP_SEED;
-            end
-            RUN_PRNG: begin
-                state_next = (rdi_valid) ? PARSE : RUN_PRNG;
+                state_next = (start) ? PARSE : WAIT;
             end
             PARSE: begin
-                state_next = (parse_done == 1'b1 && j < 8) ? RUN_PRNG :
-                        (j == 8 && i == 64 && parse_state == STORE) ? WAIT : PARSE;
+                state_next = (j == 8 && i == 63 && parse_state == STORE) ? WAIT : PARSE;
             end
             default: begin
                 state_next = WAIT;
@@ -81,7 +75,6 @@ module binomial_sampler(
     always @(posedge clk) begin
         // default outputs
         done       <= 1'b0;
-        parse_done <= 1'b0;
 
         // output ram (polynomial)
         poly_wea   <= 1'b0;
@@ -94,12 +87,9 @@ module binomial_sampler(
         hw_b  <= 0;
         r_val <= 16'b0;
         r_addr <= 9'b0;
-        
-        byte_addr <= 0;
     
-        // Trivium signals
+        // Random data
         rdi_ready <= 1'b0;
-        reseed <= 0;
 
         // reset logic
         if (rst == 1'b1) begin
@@ -108,31 +98,12 @@ module binomial_sampler(
             rdi_ready <= 1'b0;
         end else begin
             // functional logic
-            case(state_next)
+            case(state)
                 WAIT: begin
                     // default outputs -> just waiting
                     i <= 0; 
                     j <= 0;
 
-                    if (start) begin
-                        rdi_ready <= 1'b1;
-                    end
-                end
-                SETUP_SEED: begin
-                    if (j < 10) begin
-                        byte_addr <= j;
-                        
-                        j <= j + 1;
-                        if (j > 1)
-                            seed[(j-2)*32+:32] <= byte_do;
-                    end else begin
-                        j <= j;
-                        reseed <= 1'b1;
-                    end
-                end
-                RUN_PRNG: begin
-                    rdi_ready <= 1'b0;
-                    j <= 0;
                 end
                 PARSE: begin
                     // hand outputs of SHAKE
@@ -157,12 +128,10 @@ module binomial_sampler(
                             
                             if (j == 8) begin
                                 rdi_ready <= 1'b1;
-                                parse_done <= 1'b1;
                                 j <= 0;
 
                                 if (i == 63) begin
                                     done <= 1'b1;
-                                    i <= 0;
                                 end else begin
                                     i <= i + 1;
                                 end

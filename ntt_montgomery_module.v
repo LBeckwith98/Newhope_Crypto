@@ -25,38 +25,40 @@ module ntt_montgomery_module(
     );
 
     // pipeline registers
-    reg [31:0] REDUCE_a = 32'd0;
-    reg [15:0] SUB_a_pair = 16'd0, SUB_omega = 16'd0,  MULT_omega = 16'd0, SUB_a = 16'd0, MULT_a = 16'd0;
-    reg SUB_load = 1'd0, MULT_load = 1'd0, REDUCE_load = 1'd0;
+    reg [17:0] SUB_a = 0, MULT_a2 = 0;
+    wire [36:0] REDUCE_a;
+    reg [15:0] SUB_a_pair = 0, omega_preadder_delay = 0, SUB_omega = 0;
+    //**Note for above: the DSP slice does not have a register to delay
+    // the mult value so it must be done manually
     
+    reg [4:0] load_sr = 0;
         
     // instance of pipelined reduction module
-    montgomery_reduction reducer(clk, REDUCE_load, en, reset, REDUCE_a, b_pair, valid);
+    montgomery_reduction reducer(clk, load_sr[4], en, reset, REDUCE_a[31:0], b_pair, valid);
+    
+    // DSP instance for max efficieny
+    dynpreaddmultadd #(.SIZEIN(18)) DSP0 (
+        clk, 1'd1, reset, 1'd1,
+        SUB_a, {2'd0, SUB_a_pair}, {2'd0, SUB_omega}, 18'd0,
+        REDUCE_a
+    );
     
     always @(posedge clk)  
     begin
         // synchronous reset 
         if (reset) begin
-            SUB_load <= 1'b0;
-            MULT_load <= 1'b0;
-            REDUCE_load <= 1'b0;
+            load_sr <= 5'd0;
         end
         else if (en) begin
             // ADD_3Q calculation
-            SUB_a <= a + 16'd36867;
+            SUB_a <= a + 16'd24578; //14'd12289;// <- 1 LUT smaller
             SUB_a_pair <= a_pair;
-            SUB_omega <= omega;
-            SUB_load <= load;
             
-            // SUB_A calculation
-            MULT_a <= SUB_a - {16'd0, SUB_a_pair};
-            MULT_omega <= SUB_omega;
-            MULT_load <= SUB_load;
-            
-            // MULT_OMEGA CALCULATION
-            REDUCE_a <= MULT_a * MULT_omega;
-            REDUCE_load <= MULT_load;
-            
+            omega_preadder_delay <= omega;
+            SUB_omega <= omega_preadder_delay;
+        
+            load_sr <= {load_sr[3:0], load};           
+        
             /*
              * pipelined calculation continues in montgomery_reduction
              */

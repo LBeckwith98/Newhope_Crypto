@@ -48,9 +48,9 @@ module polynomial_encoder(
         STORE_R5 = 4'd8,
         STORE_R6 = 4'd9,
         FINAL    = 4'd11;
-    reg [3:0] state, state_next;
+    reg [3:0] state = HOLD, state_next;
 
-    reg [6:0] i;
+    reg [6:0] i = 0;
     reg [13:0] t0, t1, t2, t3; // an corresponds to a_(i+n) in algorithmic description
     
     reg bar_en, bar_valid;
@@ -61,7 +61,7 @@ module polynomial_encoder(
     
     // combinational state logic
     always @(*) begin
-        state_next = state;
+        state_next = HOLD;
     
         case (state) 
         HOLD: begin

@@ -15,24 +15,24 @@ module butterfly(
     input [15:0] ina,
     input [15:0] inb,
     input [15:0] omega,
-    input is_valid,
+    input in_valid,
     input en,
     output [15:0] outa,
     output [15:0] outb,
     output valid
     );
     
-    wire mont_valid, b_valid;
+    wire mont_valid;
     wire [15:0] adder_out, mont_out;
     
     assign valid = mont_valid;
     assign outb = mont_out;
     
-    ntt_montgomery_module mont_mod(clk, is_valid, en, reset, ina, inb, omega, mont_out, mont_valid);
+    ntt_montgomery_module mont_mod(clk, in_valid, en, reset, ina, inb, omega, mont_out, mont_valid);
     
-    ntt_adder add_mod(clk, is_valid, en, reset, 1'b0, ina, inb, adder_out, b_valid);
+    ntt_adder add_mod(clk, en, reset, 1'b0, ina, inb, adder_out);
     
-    // buggers add_mod output by 5 cycles and the outputs to butterfly
-    shift_registers_bf adder_buffer (clk, en, adder_out, outa);
+    // buffer add_mod output by 2 cycles and the outputs to butterfly
+    shift_register_bf #(.LENGTH(5)) adder_buffer (clk, en, adder_out, outa);
     
 endmodule

@@ -51,7 +51,6 @@ module encrypter(
     reg [15:0] PR1_dia, PR1_dib;
     reg PR1_wea, PR1_web;
     reg [10:0] PR1_addra, PR1_addrb;
-    wire [9:0] poly_addr_comp;
     
     /* --- POLYNOMIAL RAM 2 --- */    
     wire [15:0] PR2_doc, PR2_dod;
@@ -123,41 +122,35 @@ module encrypter(
     wire [2:0] IR_addr_ga;
     wire [8:0] PR2_addrd_ga;
     wire [15:0] PR2_did_ga;
-    wire shake_rst_ga, shake_in_ready_ga, shake_is_last_ga, shake_squeeze_ga;
-    wire [31:0] shake_in_ga;
-    wire [1:0] shake_byte_num_ga;
+    wire [255:0] seed_ga;
+    wire reseed_ga, rdi_ready_ga;
    
     /* SAMPLER WIRES */
     reg start_bs;
     reg rst_bs;
+    reg reseed_needed_bs;
     wire done_bs;
-    reg [7:0] nonce_bs;
     wire [2:0] IR_addra_bs;
     wire PR_we_bs;
     wire [8:0] PR_addr_bs;
     wire [15:0] PR_di_bs;
+    wire [255:0] seed_bs;
+    wire reseed_bs, rdi_ready_bs;
     
-    wire shake_rst_bs, shake_in_ready_bs, shake_is_last_bs;
-    wire [31:0] shake_in_bs;
-    wire [1:0] shake_byte_num_bs;
    
-    /* SHAKE WIRES */
-    // inputs
-    wire rst_shake, in_ready_shake, is_last_shake, squeeze_shake;
-    wire [31:0] in_shake;
-    wire [1:0] byte_num_shake; 
-    // outputs
-    wire buffer_full_shake;
-    wire [1087:0] out_shake;
-    wire out_ready_shake;
+    /* Trivium Wires */
+    reg en_prng = 0;
+    wire [255:0] seed;
+    wire [127:0] rdi_data;
+    wire reseed;
+    wire reseed_ack, rdi_valid, rdi_ready;
+
     
     // if state == S1, then genA gets control, otherwise sampler
-    assign rst_shake = (encrypter_state == S1) ? shake_rst_ga : shake_rst_bs;
-    assign in_ready_shake = (encrypter_state == S1) ? shake_in_ready_ga : shake_in_ready_bs;
-    assign is_last_shake = (encrypter_state == S1) ? shake_is_last_ga : shake_is_last_bs;
-    assign squeeze_shake = (encrypter_state == S1) ? shake_squeeze_ga : 1'b0;
-    assign in_shake = (encrypter_state == S1) ? shake_in_ga : shake_in_bs;
-    assign byte_num_shake = (encrypter_state == S1) ? shake_byte_num_ga : shake_byte_num_bs;
+    assign rdi_ready = (encrypter_state == S1) ? rdi_ready_ga : rdi_ready_bs;
+    assign reseed =  (encrypter_state == S1) ? reseed_ga : reseed_bs;
+    assign rdi_ready =  (encrypter_state == S1) ? rdi_ready_ga : rdi_ready_bs;
+    assign seed = (encrypter_state == S1) ? seed_ga : seed_bs;
     
     /* ---  INPUT RAM 1 --- */
     wire IR1_we;
@@ -212,7 +205,7 @@ module encrypter(
     poly_arithmetic POLY_ARITH2(clk, rst, start_pa2, done_pa2, op_code_pa2, PR_we_pa2,
                                 PR_addr_pa2, PR_do1_pa2, PR_do2_pa2, PR_di_pa2);
     
-    ntt NTT(clk, rst, start_ntt, inverse_ntt, done_ntt, PR_wea_ntt, PR_web_ntt,
+    ntt_old NTT(clk, rst, start_ntt, inverse_ntt, done_ntt, PR_wea_ntt, PR_web_ntt,
             PR_addra_ntt, PR_addrb_ntt, PR_dia_ntt, PR_dib_ntt, 
             PR_doa_ntt, PR_dob_ntt);
     
@@ -228,20 +221,30 @@ module encrypter(
     polynomial_encoder POLY_ENC(clk, rst, start_pe, done_pe, OR_we_pe,
                                 OR_addr_pe, OR_di_pe, PR2_addrc_pe, PR2_doc);
     
-    gen_a GENA(clk, rst, start_ga, done_ga, IR_addr_ga, IR1_dout, PR2_wed_ga, PR2_addrd_ga, PR2_did_ga,
-                shake_rst_ga, shake_in_ga, shake_in_ready_ga, shake_is_last_ga, shake_byte_num_ga,
-                shake_squeeze_ga, out_shake, out_ready_shake);
+    gen_a GENA(clk, rst, start_ga, done_ga,            // ctrl
+                 IR_addr_ga, IR1_dout,                 // in ram
+                 PR2_wed_ga, PR2_addrd_ga, PR2_did_ga, // out ram
+                 seed_ga, reseed_ga, reseed_ack, rdi_data, rdi_valid, rdi_ready_ga);      // trivium 
     
-    binomial_sampler SAMPLER(clk, rst_bs, start_bs, nonce_bs, done_bs, IR_addra_bs, IR1_dout,
-                                PR_we_bs, PR_addr_bs, PR_di_bs, shake_rst_bs, shake_in_bs,
-                                shake_in_ready_bs, shake_is_last_bs,  shake_byte_num_bs,
-                                out_shake[1087:1087-1023], out_ready_shake);
-    
-    keccak SHAKE256 (clk, rst_shake, in_shake,  in_ready_shake,  is_last_shake,  squeeze_shake,
-                        byte_num_shake, buffer_full_shake, out_shake, out_ready_shake);
-    
+    binomial_sampler SAMPLER(clk, rst_bs, start_bs, done_bs, reseed_needed_bs, // ctrl
+                            IR_addra_bs, IR1_dout,                 // in ram
+                            PR_we_bs, PR_addr_bs, PR_di_bs,  // out ram
+                            seed_bs, reseed_bs, reseed_ack, rdi_data, rdi_valid, rdi_ready_bs); // trivium 
+
+    prng_trivium_enhanced 
+        #(.N(2)) 
+    PRNG (
+        .clk(clk),
+        .rst(rst),
+        .en_prng(en_prng),
+        .seed(seed),
+        .reseed(reseed),
+        .reseed_ack(reseed_ack),
+        .rdi_data(rdi_data),
+        .rdi_ready(rdi_ready),
+        .rdi_valid(rdi_valid)
+     );  
     /* --- Start controller logic --- */
-    
     
     
     // combinational state logic
@@ -431,7 +434,6 @@ module encrypter(
         // defaults
         done_op1 <= done_op1;
         done_op2 <= done_op2;
-        nonce_bs <= nonce_bs;
         inverse_ntt <= 1'b0;
 
         encrypter_done <= 1'b0;
@@ -451,6 +453,9 @@ module encrypter(
         op_code_pa1 <= op_code_pa1;
         op_code_pa2 <= op_code_pa2;
         
+        en_prng <= 1'b0;
+        reseed_needed_bs <= 1'b0;
+        
         if (rst == 1'b1) begin
             rst_bs <= 1'b1;
         end else begin
@@ -460,13 +465,15 @@ module encrypter(
                 op_code_pa2 <= 2'd0;
                 done_op1 <= 1'b0;
                 done_op2 <= 1'b0;
-                nonce_bs <= 8'd0;
                 if (start) begin
+                    reseed_needed_bs <= 1'b1;
                     start_bs <= 1'b1;
                     start_pd <= 1'b1;
+//                    $display("BS sampling s'");
                 end
             end
             S0: begin
+                en_prng <= 1'b1;
                 if (s_done) begin
                     done_op1 <= 1'b0;
                     done_op2 <= 1'b0;
@@ -474,6 +481,7 @@ module encrypter(
                     op_code_pa2 <= 3'd3; // MULTIPLY_PRECOMP
                     start_pa2 <= 1'b1;
                     start_ga <= 1'b1;
+//                    $display("GenA");
                 end 
                 if (done_bs) begin
                     done_op1 <= 1'b1;
@@ -484,13 +492,14 @@ module encrypter(
                 end
             end
             S1: begin
+                en_prng <= 1'b1;
                 if (s_done) begin
                     done_op1 <= 1'b0;
                     done_op2 <= 1'b0;
                     
-                    nonce_bs <= 8'd1;
                     start_ntt <= 1'b1;
                     start_bs <= 1'b1;
+//                    $display("BS sampling e'");
                 end 
                 if (done_pa2) begin
                     done_op1 <= 1'b1;
@@ -500,14 +509,15 @@ module encrypter(
                 end
             end
             S2: begin
+                en_prng <= 1'b1;
                 if (s_done) begin
                     done_op1 <= 1'b0;
                     done_op2 <= 1'b0;
                     
                     op_code_pa2 <= 3'd0; // MULTIPLY
-                    nonce_bs <= 8'd2;
                     start_pa2 <= 1'b1;
                     start_bs <= 1'b1;
+//                    $display("BS sampling e''");
                 end 
                 if (done_ntt) begin
                     done_op1 <= 1'b1;
@@ -518,6 +528,7 @@ module encrypter(
                 end
             end
             S3: begin
+                en_prng <= 1'b1;
                 if (s_done) begin
                     done_op1 <= 1'b0;
                     done_op2 <= 1'b0;

@@ -21,14 +21,14 @@ module bf_addr(
     assign addr_a = addr_a_reg[8:0];
     assign addr_pair = addr_pair_reg[8:0];
 
-    reg [8:0] offset;
+    reg [8:0] offset; 
     
     // combinational block
-    always @(*) begin    
+    always @(*) begin       
         offset = (bf_num >> (8-layer_num));
-        
-        addr_a_reg = (({bf_num, 1'b0} << layer_num) & 9'd511) + offset;
-        addr_pair_reg = (({bf_num, 1'b1} << layer_num) & 9'd511) + offset;    
+
+        addr_a_reg = (({bf_num[7:0],1'd0} << layer_num) & 9'd511) + offset;
+        addr_pair_reg = (({bf_num[7:0],1'd1} << layer_num) & 9'd511) + offset; 
     end
    
 endmodule

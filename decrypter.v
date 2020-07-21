@@ -113,7 +113,7 @@ module decrypter(
         endcase
     end
     
-    dual_port_ram #(.MEM_WIDTH(8), .MEM_SIZE(1984)) I_RAM (clk,clk,1'b1,1'b1,IR_wea,1'b0,IR_addra,IR_addrb,IR_dia,8'd0,IR_doa,IR_dob);
+    dual_port_ram #(.WIDTH(8), .LENGTH(1984)) I_RAM (clk,clk,1'b1,1'b1,IR_wea,1'b0,IR_addra,IR_addrb,IR_dia,8'd0,IR_doa,IR_dob);
     
     /* --- POLYNOMIAL RAM --- */    
     wire [15:0] PR_doa, PR_dob;
@@ -223,7 +223,7 @@ module decrypter(
     poly_arithmetic POLY_ARITH(clk, rst, start_pa, done_pa, op_code_pa, poly_wea_pa,
                                 poly_addr_pa, PR_doa, PR_dob, poly_dia_pa);
     
-    ntt NTT(clk, rst, start_ntt, 1'b1, done_ntt, poly_wea_ntt, poly_web_ntt,
+    ntt_old NTT(clk, rst, start_ntt, 1'b1, done_ntt, poly_wea_ntt, poly_web_ntt,
             poly_addra_ntt, poly_addrb_ntt, poly_dia_ntt, poly_dib_ntt, 
             PR_doa, PR_dob);
     

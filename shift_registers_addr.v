@@ -11,7 +11,7 @@ input clken,
 input [17:0] SI, 
 output [17:0] SO
 );
-    parameter LENGTH = 11;
+    parameter LENGTH = 8;
 
     reg [17:0] shreg[LENGTH-1:0];
     integer i;
@@ -21,17 +21,6 @@ output [17:0] SO
     initial begin
        for (i = 0; i < LENGTH; i = i+1)
           shreg[i] <= 0;
-//        shreg[0] = 0;
-//        shreg[1] = 0;
-//        shreg[2] = 0;
-//        shreg[3] = 0;
-//        shreg[4] = 0;
-//        shreg[5] = 0;
-//        shreg[6] = 0;
-//        shreg[7] = 0;
-//        shreg[8] = 0;
-//        shreg[9] = 0;
-//        shreg[10] = 0;
     end
     
     always @(posedge clk) begin

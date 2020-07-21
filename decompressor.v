@@ -28,7 +28,7 @@ module decompressor(
     input start,
     output reg done,
     // Input RAM signals
-    output reg [9:0] byte_addr,
+    output reg [7:0] byte_addr,//*changed for pl
     input [7:0] byte_do,
     // output RAM signals
     output reg poly_wea,

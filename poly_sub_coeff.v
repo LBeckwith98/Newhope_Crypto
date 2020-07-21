@@ -21,32 +21,22 @@
 
 // combinational module, take one cycle.
 module poly_sub_coeff(
-  // data signals
+  // basic control signals
   input clk,
-  input rst,
-  input start,
+  input en,
+  // data signals
   input [15:0] dia,
   input [15:0] dib,
-  output done,
-  output [15:0] dout
+  output reg [15:0] red_out
   );
   
-  localparam 
-    NEWHOPE_Q = 16'd12289;
+  localparam NEWHOPE_Q = 14'd12289;
+  reg [15:0] dout;
     
-  reg [15:0] red_in;
-  reg valid;
-  wire [13:0] red_out;
-  
-  assign dout = {2'b0, red_out};
-  
-  barrett_reducer BAR_RED (clk, rst, 1'b1, red_in, valid, done, red_out);
-
   always @(posedge clk) begin
-    valid <= 1'b0;
-    if (start) begin
-        red_in <= dia + 16'd36867 - dib;
-        valid <= 1'b1;
+    if (en) begin
+        dout    <= (dib > dia) ?  dia + NEWHOPE_Q - dib : dia - dib;
+        red_out <= (dout > NEWHOPE_Q) ? dout - NEWHOPE_Q : dout;
     end
   end
 

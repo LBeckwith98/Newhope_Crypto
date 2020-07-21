@@ -26,64 +26,62 @@ module gen_a(
     input rst,
     // control inputs
     input start,
-    output reg done,
-    // Input RAM signals
-    output reg [2:0] byte_addr,
+    output reg done = 0,
+    // input RAM signals
+    output reg [2:0] byte_addr = 0,
     input [31:0] byte_do,
     // output RAM signals
-    output reg poly_wea,
-    output reg [8:0] poly_addra,
-    output reg [15:0] poly_dia,
-    // SHAKE256 module signals
-    output reg shake_rst,
-    output [31:0] shake_in,
-    output reg shake_in_ready,
-    output reg shake_is_last,
-    output [1:0] shake_byte_num,
-    output reg shake_squeeze,
-    input [0:1087] shake_out,
-    input shake_out_ready);
+    output reg poly_wea = 0,
+    output reg [8:0] poly_addra = 0,
+    output reg [15:0] poly_dia = 0,
+    // Trivium module signals
+    output reg [255:0] seed = 0,
+    output reg reseed = 0,
+    input reseed_ack,
+	input [127:0] rdi_data,
+	input rdi_valid,
+	output reg rdi_ready = 0
+	);
     
-    integer NEWHOPE_5Q = 61445;
+//    always @(posedge clk) begin
+//        if (poly_wea) begin
+//            $display("GenA,%d,%h",poly_addra,poly_dia);
+//        end
+//    end
+    
+    localparam NEWHOPE_5Q = 16'd61445;
     localparam
-        HOLD    = 3'd0,
-        ABSORB  = 3'd1,
-        SQUEEZE = 3'd2,
-        PARSE   = 3'd3;
+        HOLD       = 3'd0,
+        SETUP_SEED = 3'd1,
+        RUN_PRNG   = 3'd2,
+        PARSE      = 3'd3;
     reg [2:0] state, state_next;
     
     // iterate registers registers
-    reg [7:0] i;
-    reg [6:0] ctr;
-    reg [7:0] j;
-    reg [3:0] absorb_ctr;
-    
-    // parse state registers
-    reg parse_done;
-    
-    // connect byte out to shake_in
-    assign shake_in = (shake_is_last) ? {i[7:0], 24'b0} : byte_do;
-    assign shake_byte_num = 2'd1;
-    
+    reg [9:0] ctr;
+    reg [4:0] j;
+       
+    wire value_valid;
+    assign value_valid = (j < 16 && {rdi_data[(j+1)*8+:8], rdi_data[j*8+:8]} < NEWHOPE_5Q) ? 1'b1 : 1'b0;
+       
     // combinational state logic
     always @(*) begin
         state_next = state;
     
         case (state) 
         HOLD: begin
-            state_next = (start == 1'b1) ? ABSORB : HOLD;
+            state_next = (start == 1'b1) ? SETUP_SEED : HOLD;
         end
-        ABSORB: begin
-            state_next = (shake_is_last == 1'b1) ? SQUEEZE : ABSORB;
+        SETUP_SEED: begin
+            state_next = (reseed_ack) ? RUN_PRNG : SETUP_SEED;
         end
-        SQUEEZE: begin
-            state_next = (shake_squeeze == 1'b0 & shake_out_ready == 1'b1) ? PARSE : SQUEEZE;
+        RUN_PRNG: begin
+            state_next = (rdi_valid) ? PARSE : RUN_PRNG;
         end
         PARSE: begin
             // this logic may need adjustment (need to add squeeze logic)
-            state_next = (j == 134 & ctr < 64) ? SQUEEZE : 
-                         (ctr == 64 & i == 7) ? HOLD :
-                         (ctr == 64 & i < 7) ? ABSORB : PARSE;
+            state_next = (j == 16 && ctr < 512) ? RUN_PRNG : 
+                         (ctr == 511 && value_valid) ? HOLD : PARSE;
         end        
         endcase
     end
@@ -97,85 +95,66 @@ module gen_a(
     always @(posedge clk) begin
         // defaults
         done <= 1'b0;
-        absorb_ctr <= 0;
     
        // output ram (polynomial)
         poly_wea   <= 1'b0;
-        poly_addra <= 9'b0;
-        poly_dia   <= 16'b0;
+        
+        byte_addr <= 0;
     
-        // SHAKE
-        shake_rst      <= 1'b0;
-        shake_squeeze  <= 1'b0;
-        shake_in_ready <= 1'b0;
-        shake_is_last  <= 1'b0;
+        // Trivium signals
+        rdi_ready <= 1'b0;
+        reseed <= 0;
         
         // parse state defaults
-        j <= 0;
-        i <= i;
-        
-        // input ram (byte)
-        byte_addr <= 3'b0;
+        j <= 0;        
         
         if (rst == 1'b1) begin
-            shake_rst <= 1;
-            i   <= 0;
-            j   <= 0;
             ctr <= 0;
         end else begin
                
             case (state) 
             HOLD: begin
                 if (start) begin
-                    absorb_ctr <= 1; // account for delay of RAM access
+                    rdi_ready <= 1;
                 end
             end
-            ABSORB: begin
-                ctr <= 0;
-                if (absorb_ctr < 9) begin
-                    // load from RAM
-                    byte_addr <= absorb_ctr[2:0];
-                    absorb_ctr <= absorb_ctr + 1;
-
-                    // input into SHAKE
-                    if (absorb_ctr > 0)
-                        shake_in_ready <= 1'b1;
+            SETUP_SEED: begin
+                if (j < 10) begin
+                    byte_addr <= j;
+                    
+                    j <= j + 1;
+                    if (j > 1)
+                        seed[(j-2)*32+:32] <= byte_do;
                 end else begin
-                    // last load in, appends i in assign statement
-                    shake_in_ready <= 1'b1;
-                    shake_is_last <= 1'b1;
+                    j <= j;
                 end
+            
+                if (j == 7)                
+                    reseed <= 1'b1;
             end
-            SQUEEZE: begin
-                // just waiting for shake to finish
-                ctr <= ctr;
+            RUN_PRNG: begin
+                rdi_ready <= 1'b0;
+                j <= 0;
             end
             PARSE: begin
-                if ({shake_out[(j+1)*8+:8], shake_out[j*8+:8]} < NEWHOPE_5Q) begin
+                if (value_valid) begin
                     // write value to poly memory
                     poly_wea <= 1'b1;
-                    poly_addra <= i*64 + ctr;
-                    poly_dia <= {shake_out[(j+1)*8+:8], shake_out[j*8+:8]};
+                    poly_addra <= ctr;
+                    poly_dia <= {rdi_data[(j+1)*8+:8], rdi_data[j*8+:8]};
                     ctr <= ctr + 1;
                 end else begin
                     ctr <= ctr;
                 end
                 
-                if (j == 134 & ctr < 64) begin
-                    // start squeeze if end of current parse state and not done
-                    shake_squeeze <= 1'b1;
-                end else if (ctr == 64) begin
-                    if (i == 7) begin
-                        done <= 1'b1;
-                        poly_wea <= 1'b0;
-                        i <= 0;
-                    end else begin
-                        // start absorb
-                        shake_rst <= 1'b1;
-                        absorb_ctr <= 1'b1; // account for delay of RAM access                    
-                        i <= i + 1;
-                    end
-                end else begin
+                if (j == 16 & ctr < 511) begin
+                    // Run PRNG
+                    rdi_ready <= 1'b1;
+                end else if (ctr == 511 && value_valid) begin
+                    done <= 1'b1;
+                    ctr <= 0;
+                end
+                else begin
                     // continue parse
                     j <= j + 2;
                 end

@@ -3,9 +3,9 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 02/13/2020 05:40:10 PM
+// Create Date: 07/13/2020 08:34:38 PM
 // Design Name: 
-// Module Name: poly_arithmetic
+// Module Name: poly_add
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -20,14 +20,13 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module poly_arithmetic(
+module poly_add(
   // basic control signals
   input clk,
   input rst,
+  input en,
   input start,
   output reg done = 0,
-  // operation control signals
-  input [1:0] opCode,
   // Poly RAM access signals
   output reg ram_we,
   output wire [8:0] ram_addr_out,
@@ -43,64 +42,28 @@ module poly_arithmetic(
     SUBTRACT         = 2'b10,
     MULTIPLY_PRECOMP = 2'b11;
 
-  localparam 
-    MULT_PIPELINE = 3'd6, 
-    MULT_PRECOMP_PIPELINE = 3'd3,
-    SUB_PIPELINE = 3'd2,
-    ADD_PIPELINE = 3'd2;
+  localparam PIPELINE_LENGTH = 3'd2;
   reg [2:0] pipeline_count = 0;
-  reg [2:0] PIPELINE_LENGTH;
-
-  always @* begin
-    case (opCode) 
-    MULTIPLY: begin
-        PIPELINE_LENGTH = MULT_PIPELINE;
-    end
-    MULTIPLY_PRECOMP: begin
-        PIPELINE_LENGTH = MULT_PRECOMP_PIPELINE;
-    end
-    SUBTRACT: begin
-        PIPELINE_LENGTH = SUB_PIPELINE;
-    end
-    ADD: begin
-        PIPELINE_LENGTH = ADD_PIPELINE;
-    end
-    endcase
-  end
 
    // states operations
-  reg [1:0] state, state_next;
+  reg [1:0] state = 0, state_next;
   localparam 
     HOLD      = 2'b00, 
     LOAD      = 2'b01, 
     UNLOAD    = 2'b10;
 
-
   // keeps track of which coefficients are being affected
-  reg [9:0] coeff_count, coeff_count_next;
+  reg [9:0] coeff_count = 0, coeff_count_next;
   wire [9:0] ram_addr;
   assign ram_addr = (state == UNLOAD) ? coeff_count - pipeline_count : coeff_count;
   assign ram_addr_out = ram_addr[8:0];
 
   // arithmetic modules
-  wire [15:0] add_out, sub_out, mult_out;
-  reg sub_start;
-  wire sub_done;
-  wire precomp;
-  reg en_mult = 1;
-  reg en_add = 1;
-  reg en_sub = 1;
-  
-  assign precomp = (opCode == MULTIPLY_PRECOMP) ? 1'b1 : 1'b0;
-  
-  assign dout = (opCode == MULTIPLY) ? mult_out :
-                    (opCode == ADD) ? add_out :
-                    (opCode == SUBTRACT) ? sub_out : 
-                    (opCode == MULTIPLY_PRECOMP) ? mult_out :16'd0;
+  wire [15:0] add_out;
 
-  poly_add_coeff add_module(clk, en_add, ram_doa, ram_dob, add_out);
-  poly_sub_coeff sub_module(clk, en_sub, ram_doa, ram_dob, sub_out);
-  poly_mult_coeff mult_module(clk, en_mult, precomp, ram_doa, ram_dob, mult_out);
+  assign dout = add_out;
+
+  poly_add_coeff add_module(clk, en, ram_doa, ram_dob, add_out);
   
   // combination state logic
   always @(*) begin
