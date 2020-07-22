@@ -21,27 +21,24 @@
 
 // combinational module, take one cycle.
 module poly_add_coeff(
+  // basic control signals
   input clk,
-  input start,
+  input en,
+  // data signals
   input [15:0] dia,
   input [15:0] dib,
-  output reg done,
   output reg [15:0] dout
   );
+  localparam NEWHOPE_Q = 14'd12289, NEWHOPE_2Q = 15'd24578;
   reg [15:0] sum;
-  localparam 
-    NEWHOPE_2Q = 16'd24578,
-    NEWHOPE_Q = 16'd12289;
-  
-  reg start_in;
   
   always @(posedge clk) begin
-    sum <= dia + dib;
-    start_in <= start;
-    
-    dout <= (sum >= NEWHOPE_2Q) ? sum - NEWHOPE_2Q : 
-                (sum >= NEWHOPE_Q) ? sum - NEWHOPE_Q : sum;
-    done <= start_in;
+    if (en) begin
+        sum <= dia + dib;
+        
+        dout <= (sum >= NEWHOPE_2Q) ? sum - NEWHOPE_2Q :
+                    (sum >= NEWHOPE_Q) ? sum - NEWHOPE_Q : sum;
+    end
   end
 
 endmodule

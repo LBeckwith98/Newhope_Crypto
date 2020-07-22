@@ -118,7 +118,6 @@ module gen_a(
         byte_addr <= 3'b0;
         
         if (rst == 1'b1) begin
-            shake_rst <= 1;
             i   <= 0;
             j   <= 0;
             ctr <= 0;
@@ -127,6 +126,7 @@ module gen_a(
             case (state) 
             HOLD: begin
                 if (start) begin
+                    shake_rst <= 1;
                     absorb_ctr <= 1; // account for delay of RAM access
                 end
             end

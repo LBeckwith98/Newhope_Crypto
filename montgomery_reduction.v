@@ -22,57 +22,35 @@ module montgomery_reduction(
     output valid
     );
    
-    // reg used to stor intermediate states
-    reg [17:0] MASK_stage_u = 0;
-    reg [31:0] MASK_stage_in = 0, MULT_Q_stage_u = 0, MULT_Q_stage_in = 0,
-                ADD_stage_u = 0, ADD_stage_in = 0, out_reg = 0, delay_reg = 0;
+    // reg used to store intermediate states
+    reg [17:0] MULT_Q_stage_u = 0;
+    reg [31:0]  MULT_Q_stage_in = 0;
+    reg [31:0] out_reg = 0;
                 
-    reg MASK_stage_load = 0, MULT_Q_stage_load = 0, ADD_stage_load = 0, done_reg = 0, delay = 0;
+    reg [1:0] valid_sr = 0;
     
     assign out = {2'b00, out_reg[31:18]};
-    assign valid = done_reg;
-    
-    // state logic
-    initial begin
-        out_reg = 32'b0;
-        done_reg = 1'b0;
-    end
-    
+    assign valid = valid_sr[1];
+
     always @(posedge clk)  
     begin
         // synchronous reset 
         if (reset) begin           
-            MASK_stage_load <= 1'b0;
-            MULT_Q_stage_load <= 1'b0;
-            ADD_stage_load <= 1'b0;
-            delay <= 1'b0;
-            done_reg <= 1'b0;
+            valid_sr <= 1'd0;
         end
         else if (en) begin
+            // NOTE: These two calculations are inferred as DSPs
+        
             // MULT_QINV calculation
-            MASK_stage_u <= in * 32'd12287;
-            MASK_stage_in <= in;
-            MASK_stage_load <= load;
-            
-            // MASK calculation
-            MULT_Q_stage_u <= MASK_stage_u & 32'd262143;
-            MULT_Q_stage_in <= MASK_stage_in;
-            MULT_Q_stage_load <= MASK_stage_load;
+            MULT_Q_stage_u <= (in * 14'd12287) & 18'd262143;
+            MULT_Q_stage_in <= in;
 
             // MULT_Q calculation
-            ADD_stage_u <= MULT_Q_stage_u * 32'd12289;
-            ADD_stage_in <= MULT_Q_stage_in;
-            ADD_stage_load <= MULT_Q_stage_load;
+            out_reg <= (MULT_Q_stage_u * 14'd12289) + MULT_Q_stage_in;
             
-            // A_ADD calculation
-            delay_reg <= ADD_stage_in + ADD_stage_u;
-            delay <= ADD_stage_load;
-
-            out_reg <= delay_reg;
-            done_reg <= delay;
+            valid_sr <= {valid_sr[0], load};
         end 
         
     end
 
-    
 endmodule
